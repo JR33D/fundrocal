@@ -22,7 +22,7 @@ export default function CalendarWeek({ events, currentDate }: { events: Event[];
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   function getTeamIcon(teamNumber: number) {
-    return `/team-icons/frc${teamNumber}.png`;
+    return `/fundrocal/team-icons/frc${teamNumber}.png`;
   }
   return (
     <div>

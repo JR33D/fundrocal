@@ -26,7 +26,7 @@ export default function CalendarMonth({
   }
 
   function getTeamIcon(teamNumber: number) {
-    return `/team-icons/frc${teamNumber}.png`;
+    return `/fundrocal/team-icons/frc${teamNumber}.png`;
   }
 
   return (

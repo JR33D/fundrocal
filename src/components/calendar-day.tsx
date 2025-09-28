@@ -16,7 +16,7 @@ export default function CalendarDay({ events, currentDate }: { events: Event[]; 
   const dayEvents = events.filter(e => new Date(e.start).toDateString() === currentDate.toDateString());
 
   function getTeamIcon(teamNumber: number) {
-    return `/team-icons/frc${teamNumber}.png`;
+    return `/fundrocal/team-icons/frc${teamNumber}.png`;
   }
   return (
     <div>
