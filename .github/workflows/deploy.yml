@@ -36,13 +36,12 @@ jobs:
         run: npm run build
 
       # 5. Deploy to GitHub Pages and commit to gh-pages
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v6
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           commit_message: "Deploy Fundrocal site"
-          # Optional: force overwrite if you want to clean old files
           force_orphan: true
 
       # 6. Output the Pages URL
