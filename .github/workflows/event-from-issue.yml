@@ -89,7 +89,7 @@ jobs:
           ISSUE_NUMBER: "${{ github.event.issue.number }}"
           GITHUB_WORKSPACE: ${{ github.workspace }}
         run: |
-          node .github/scripts/add-event.js
+          node .github/scripts/add-event.cjs
         continue-on-error: true
 
       - name: Read validation errors
