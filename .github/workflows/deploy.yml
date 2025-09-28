@@ -47,4 +47,5 @@ jobs:
 
       # 6. Output the Pages URL
       - name: Show GitHub Pages URL
-        run: echo "Your site is live at: https://\$GITHUB_REPOSITORY_OWNER.github.io/\$GITHUB_REPOSITORY/"
+        run: |
+          echo "Your site is live at: https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY}/"
