@@ -1,0 +1,139 @@
+name: Create event PR from issue
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  create-event-pr:
+    runs-on: ubuntu-latest
+    # For issue events (opened/edited/reopened) the issue payload is present.
+    # For issue_comment events we only want to run when the comment contains '/recheck'.
+    if: >-
+      (github.event_name == 'issues' && (contains(github.event.issue.labels.*.name, 'event') || github.event.issue.template == 'Event'))
+      ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body || '', '/recheck'))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Log context
+        run: |
+          echo "Issue: ${{ github.event.issue.number }} - ${{ github.event.issue.title }}"
+
+      - name: Prepare environment
+        run: |
+          mkdir -p .github/scripts
+          chmod +x .github/scripts/add-event.js || true
+
+      - name: Check /recheck permission
+        if: github.event_name == 'issue_comment'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const commenter = context.payload.comment.user.login;
+            const issueAuthor = context.payload.issue.user.login;
+            if (commenter === issueAuthor) {
+              console.log('Commenter is issue author — allowed');
+              return;
+            }
+            const res = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username: commenter
+            });
+            const perm = res && res.data && res.data.permission ? res.data.permission : 'none';
+            if (perm === 'none') {
+              throw new Error('Only the issue author or repository collaborators may use /recheck.');
+            }
+            console.log('Commenter has collaborator permission (' + perm + ') — allowed');
+
+      - name: Run add-event script
+        id: run-event
+        env:
+          ISSUE_BODY: "${{ toJson(github.event.issue.body) }}"
+          ISSUE_TITLE: "${{ github.event.issue.title }}"
+          ISSUE_NUMBER: "${{ github.event.issue.number }}"
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+        run: |
+          node .github/scripts/add-event.js
+        continue-on-error: true
+
+      - name: Read validation errors
+        if: steps.run-event.outcome == 'failure'
+        id: read-errors
+        run: |
+          echo "reading validation file"
+          if [ -f "$GITHUB_WORKSPACE/validation-errors.txt" ]; then
+            echo "errors<<EOF" >> $GITHUB_OUTPUT
+            printf '```\n' >> $GITHUB_OUTPUT
+            cat "$GITHUB_WORKSPACE/validation-errors.txt" >> $GITHUB_OUTPUT
+            printf '\n```\n' >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          else
+            echo "errors<<EOF" >> $GITHUB_OUTPUT
+            echo "- See workflow logs for details." >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update validation comment (if failed)
+        if: steps.run-event.outcome == 'failure'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            Validation failed for the event in this issue. Please update the issue to correct the following errors and the workflow will run again.
+
+            ${{ steps.read-errors.outputs.errors }}
+
+            After fixing the issue, either edit the issue body (the workflow runs on edits) or comment `/recheck` to re-run validation.
+          issue-number: ${{ github.event.issue.number || github.event.comment.issue_id }}
+          edit-mode: replace
+          header: ':warning: Event validation'
+
+      - name: Commit changes
+        if: steps.run-event.outcome == 'success'
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: 'chore(events): add event from issue #${{ github.event.issue.number }}'
+          file_pattern: 'public/events.json'
+          branch: 'add-event-${{ github.event.issue.number }}'
+
+      - name: Create Pull Request
+        if: steps.run-event.outcome == 'success'
+        id: create-pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore(events): add event from issue #${{ github.event.issue.number }}'
+          branch: 'add-event-${{ github.event.issue.number }}'
+          title: 'Add event from issue #${{ github.event.issue.number }}'
+          body: |
+            This PR was created automatically from issue #${{ github.event.issue.number }}.
+            Please review the added event in `public/events.json` and adjust fields (start/end/location/teamNumber) as needed.
+          labels: automated, event-pr
+
+      - name: Update validation comment with success and PR link
+        if: steps.run-event.outcome == 'success' && steps.create-pr.conclusion == 'success'
+        uses: peter-evans/create-or-update-comment@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            :white_check_mark: Validation passed and a PR has been created for this event.
+
+            PR: #${{ steps.create-pr.outputs['pull-request-number'] }}
+
+            Link: ${{ steps.create-pr.outputs['pull-request-url'] }}
+
+            Please review the PR and merge when ready.
+          issue-number: ${{ github.event.issue.number || github.event.comment.issue_id }}
+          edit-mode: replace
+          header: ':white_check_mark: Event validated — PR created'

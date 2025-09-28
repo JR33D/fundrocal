@@ -70,4 +70,45 @@ export default defineConfig([
     },
   },
 ])
+
+## Creating events via GitHub Issues
+
+You can create a draft event by opening a new GitHub Issue and adding the `event` label (or using the issue template named `Event` if available). When the issue is opened a workflow will:
+
+- parse a JSON code block from the issue body (preferred) or simple `key: value` lines
+- append a new event to `public/events.json` and create a branch + pull request
+
+Example issue body (JSON code block):
+
+```json
+{
+  "title": "Community Pancake Breakfast",
+  "start": "2025-11-15T08:00:00",
+  "end": "2025-11-15T11:00:00",
+  "location": "Town Hall",
+  "description": "Breakfast to raise funds",
+  "teamNumber": 834
+}
+```
+
+Or as simple key/value lines:
+
+```
+title: Community Pancake Breakfast
+start: 2025-11-15T08:00:00
+end: 2025-11-15T11:00:00
+location: Town Hall
+description: Breakfast to raise funds
+teamNumber: 834
+```
+
+The workflow will open a PR so maintainers can review and adjust fields (start/end formatting, timezone, team number) before merging.
+
+Validation rules applied by the automation:
+
+- Required fields: `title`, `teamNumber`, `contact` (email)
+- `teamNumber` must be numeric-only (e.g. 834)
+- If both `start` and `end` are supplied, `start` must be before `end` (ISO 8601 strings recommended)
+
+If validation fails the workflow will stop and the run logs will show the validation errors for maintainers to correct in the issue.
 ```
