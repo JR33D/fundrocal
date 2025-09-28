@@ -1,0 +1,50 @@
+name: Deploy Fundrocal to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: npm ci
+
+      # 4. Build the project
+      - name: Build project
+        run: npm run build
+
+      # 5. Deploy to GitHub Pages and commit to gh-pages
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          commit_message: "Deploy Fundrocal site"
+          # Optional: force overwrite if you want to clean old files
+          force_orphan: true
+
+      # 6. Output the Pages URL
+      - name: Show GitHub Pages URL
+        run: echo "Your site is live at: https://\$GITHUB_REPOSITORY_OWNER.github.io/\$GITHUB_REPOSITORY/"

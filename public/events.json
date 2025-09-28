@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "title": "Charity Bake Sale",
+    "start": "2025-10-01T10:00:00",
+    "end": "2025-10-01T14:00:00",
+    "location": "Community Center",
+    "description": "Raising funds for local shelter.",
+    "teamNumber": 103
+  },
+  {
+    "id": 2,
+    "title": "5K Run for Cancer Research",
+    "start": "2025-10-03T08:00:00",
+    "end": "2025-10-03T12:00:00",
+    "location": "City Park",
+    "description": "Annual fundraiser run.",
+    "teamNumber": 834
+  },
+  {
+    "id": 3,
+    "title": "Robo Prom",
+    "start": "2025-10-05T20:00:00",
+    "end": "2025-10-06T01:00:00",
+    "location": "City Park",
+    "description": "Annual fundraiser Dance.",
+    "teamNumber": 11
+  }
+]
