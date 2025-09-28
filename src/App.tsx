@@ -21,6 +21,14 @@ function App() {
   const [selectedTeam, setSelectedTeam] = useState<number | "all">("all");
   const [view, setView] = useState<ViewMode>("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [tagline, setTagline] = useState("Building Bots, Backed by You");
+
+  // List of taglines to rotate
+  const taglines = [
+    "Building Bots, Backed by You",
+    "Boosting Bots, Backing Teams",
+    "Powering Local Robots, Strengthening Community",
+  ];
 
   useEffect(() => {
     fetch("events.json")
@@ -29,6 +37,10 @@ function App() {
       .catch(console.error);
 
     setCurrentDate(new Date());
+
+    // Pick a random tagline on load
+    const randomIndex = Math.floor(Math.random() * taglines.length);
+    setTagline(taglines[randomIndex]);
   }, []);
 
   const teams = Array.from(new Set(events.map((e) => e.teamNumber))).sort();
@@ -63,9 +75,7 @@ function App() {
       <div className="max-w-5xl mx-auto">
         <div className="p-6">
           <h1 className="text-2xl font-bold mb-4">Fundrocal</h1>
-          <p className="mb-4 italic">
-            You're insight into all the local fundraising going on.
-          </p>
+          <p className="mb-4 italic">{tagline}</p>
 
           <div className="flex gap-4 mb-4">
             <label>
