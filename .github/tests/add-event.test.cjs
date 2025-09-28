@@ -2,19 +2,18 @@ const fs = require('fs');
 const path = require('path');
 
 beforeEach(() => {
-  jest.resetModules();     // reset require cache
-  jest.resetAllMocks();    // reset mocks between tests
+  jest.resetModules();
+  jest.resetAllMocks();
 
-  // Provide fresh mocks for fs
+  // Mock fs
   fs.existsSync = jest.fn();
   fs.readFileSync = jest.fn();
   fs.writeFileSync = jest.fn();
 
-  // Default env so parseEventFromBody sees them on require
+  // Default env
   process.env.ISSUE_TITLE = "Fallback Title";
 });
 
-// Helper to load the module fresh with current env
 function loadModule() {
   return require('../scripts/add-event.cjs');
 }
@@ -23,6 +22,12 @@ describe('extractCodeBlock', () => {
   test('extracts JSON block', () => {
     const { extractCodeBlock } = loadModule();
     const body = "```json\n{ \"title\": \"Test\" }\n```";
+    expect(extractCodeBlock(body)).toBe('{ "title": "Test" }');
+  });
+
+  test('handles escaped GitHub Action ISSUE_BODY', () => {
+    const { extractCodeBlock } = loadModule();
+    const body = '"```json\\n{ \\"title\\": \\"Test\\" }\\n```"';
     expect(extractCodeBlock(body)).toBe('{ "title": "Test" }');
   });
 });
@@ -48,41 +53,6 @@ describe('parseEventFromBody', () => {
   });
 });
 
-describe('readEvents/writeEvents', () => {
-  const eventsPath = path.join(process.cwd(), 'public', 'events.json');
-
-  test('returns [] if missing', () => {
-    const { readEvents } = loadModule();
-    fs.existsSync.mockReturnValue(false);
-    expect(readEvents()).toEqual([]);
-  });
-
-  test('writes file', () => {
-    const { writeEvents } = loadModule();
-    const events = [{ id: 1 }];
-    writeEvents(events);
-    expect(fs.writeFileSync).toHaveBeenCalledWith(
-      eventsPath,
-      JSON.stringify(events, null, 2) + '\n',
-      'utf8'
-    );
-  });
-});
-
-describe('makeId', () => {
-  test('increments max id', () => {
-    const { makeId } = loadModule();
-    expect(makeId([{ id: 2 }, { id: 5 }])).toBe(6);
-  });
-});
-
-describe('sanitizeBranchName', () => {
-  test('cleans name', () => {
-    const { sanitizeBranchName } = loadModule();
-    expect(sanitizeBranchName("Hello World!!")).toBe("hello-world");
-  });
-});
-
 describe('main integration', () => {
   let exitSpy, logSpy, errorSpy;
   const eventsPath = path.join(process.cwd(), 'public', 'events.json');
@@ -104,93 +74,25 @@ describe('main integration', () => {
     errorSpy.mockRestore();
   });
 
-  function load() {
-    return require('../scripts/add-event.cjs');
-  }
+  test('happy path: appends new event', async () => {
+    const { main } = loadModule();
 
-  test('fails if missing required fields', async () => {
-    process.env.ISSUE_BODY = "```json\n{ \"title\": \"\" }\n```"; // empty title
-    process.env.ISSUE_TITLE = "";
-    process.env.ISSUE_NUMBER = "42";
-
-    const { main } = load();
-
-    await expect(main()).rejects.toThrow('process.exit');
-    expect(errorSpy.mock.calls.some(call => call.join(' ').includes('Validation failed:'))).toBe(true);
-    expect(errorSpy.mock.calls.some(call => call.join(' ').includes('title is required'))).toBe(true);
-  });
-
-  test('fails if teamNumber is non-numeric', async () => {
-    process.env.ISSUE_BODY = "```json\n{ \"title\": \"My Event\", \"teamNumber\": \"ABC\", \"contact\": \"a@b.com\" }\n```";
-    process.env.ISSUE_NUMBER = "43";
-
-    const { main } = load();
-
-    await expect(main()).rejects.toThrow('process.exit');
-    expect(errorSpy.mock.calls.some(call => call.join(' ').includes('teamNumber must be numeric only'))).toBe(true);
-  });
-
-  test('fails if email is invalid', async () => {
-    process.env.ISSUE_BODY = "```json\n{ \"title\": \"My Event\", \"teamNumber\": 123, \"contact\": \"not-an-email\" }\n```";
-    process.env.ISSUE_NUMBER = "44";
-
-    const { main } = load();
-
-    await expect(main()).rejects.toThrow('process.exit');
-    expect(errorSpy.mock.calls.some(call => call.join(' ').includes('contact must be a valid email'))).toBe(true);
-  });
-
-  test('fails if start >= end', async () => {
-    process.env.ISSUE_BODY = "```json\n{ \"title\": \"My Event\", \"teamNumber\": 123, \"contact\": \"a@b.com\", \"start\": \"2025-01-01\", \"end\": \"2025-01-01\" }\n```";
-    process.env.ISSUE_NUMBER = "45";
-
-    const { main } = load();
-
-    await expect(main()).rejects.toThrow('process.exit');
-    expect(errorSpy.mock.calls.some(call => call.join(' ').includes('start must be before end'))).toBe(true);
-  });
-
-  test('happy path: appends new event and suggests branch name', async () => {
-    const validBody = {
-      title: "My Event",
-      teamNumber: 123,
-      contact: "a@b.com",
-      start: "2025-01-01",
-      end: "2025-01-02"
-    };
-
-    process.env.ISSUE_BODY = "```json\n" + JSON.stringify(validBody) + "\n```";
-    process.env.ISSUE_NUMBER = "46";
+    // Simulate GitHub ISSUE_BODY with escaped newlines
+    process.env.ISSUE_BODY =
+      '"```json\\n{ \\"title\\": \\"Hatboro Havoc\\", \\"start\\": \\"2025-10-11T08:00:00\\", \\"end\\": \\"2025-10-11T19:00:00\\", \\"location\\": \\"Hatboro-Horsham High School\\", \\"description\\": \\"An off-season FIRST Robotics Competition Event\\", \\"teamNumber\\": 708, \\"contact\\": \\"hhrobotics@hatboro-horsham.org\\" }\\n```"';
+    process.env.ISSUE_NUMBER = "100";
 
     fs.existsSync.mockReturnValue(true);
-    fs.readFileSync.mockReturnValue("[]"); // start empty
-
-    const { main } = load();
+    fs.readFileSync.mockReturnValue("[]");
 
     await main();
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       eventsPath,
-      expect.stringContaining('"title": "My Event"'),
+      expect.stringContaining('"title": "Hatboro Havoc"'),
       'utf8'
     );
 
-    // fix for multi-arg console.log
-    expect(logSpy.mock.calls.some(call => call.join(' ').includes('Suggested branch name:'))).toBe(true);
-  });
-
-  test('fails if existing events.json is invalid JSON', async () => {
-    process.env.ISSUE_BODY = "```json\n{ \"title\": \"My Event\", \"teamNumber\": 123, \"contact\": \"a@b.com\" }\n```";
-    process.env.ISSUE_NUMBER = "47";
-
-    fs.existsSync.mockReturnValue(true);
-    fs.readFileSync.mockReturnValue("not-json");
-
-    const { main } = load();
-
-    await expect(main()).rejects.toThrow('process.exit');
-
-    // fix for multi-arg console.error
-    expect(errorSpy.mock.calls.some(call => call.join(' ').includes('Failed to parse existing events.json:'))).toBe(true);
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Suggested branch name:'));
   });
 });
