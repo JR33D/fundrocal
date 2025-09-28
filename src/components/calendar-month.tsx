@@ -1,3 +1,5 @@
+import React from "react";
+
 interface Event {
   id: number;
   title: string;
@@ -20,7 +22,17 @@ export default function CalendarMonth({
   const lastDay = new Date(year, month + 1, 0);
   const daysInMonth = lastDay.getDate();
 
-  const days: Date[] = [];
+  const days: (Date | null)[] = [];
+
+  // Determine the weekday of the first day of the month (0 = Sunday, 6 = Saturday)
+  const firstWeekday = new Date(year, month, 1).getDay();
+
+  // Add nulls to pad the first week
+  for (let i = 0; i < firstWeekday; i++) {
+    days.push(null);
+  }
+
+  // Add all days of the month
   for (let i = 1; i <= daysInMonth; i++) {
     days.push(new Date(year, month, i));
   }
@@ -43,24 +55,31 @@ export default function CalendarMonth({
             {d}
           </div>
         ))}
-        {days.map((day) => {
+
+        {days.map((day, idx) => {
+          if (!day) {
+            // Empty cell for padding
+            return <div key={`empty-${idx}`} className="border p-2 rounded min-h-[80px]"></div>;
+          }
+
           const dayEvents = events.filter(
             (e) => new Date(e.start).toDateString() === day.toDateString()
           );
+
           return (
-            <div
-              key={day.toISOString()}
-              className="border p-2 rounded min-h-[80px]"
-            >
+            <div key={day.toISOString()} className="border p-2 rounded min-h-[80px]">
               <div className="text-xs font-semibold">{day.getDate()}</div>
               {dayEvents.map((e) => (
                 <div
                   key={e.id}
-                  className="bg-blue-100 text-xs p-1 my-1 rounded"
+                  className="bg-blue-100 text-xs p-1 my-1 rounded flex items-center gap-1"
                 >
-                  {e.title} (Team {e.teamNumber}){" "}
-                  <img src={getTeamIcon(e.teamNumber)} alt={`Team ${e.teamNumber}`} className="w-10 h-10 rounded-full" />
-
+                  <img
+                    src={getTeamIcon(e.teamNumber)}
+                    alt={`Team ${e.teamNumber}`}
+                    className="w-10 h-10 rounded-full"
+                  />
+                  {e.title} (Team {e.teamNumber})
                 </div>
               ))}
             </div>
