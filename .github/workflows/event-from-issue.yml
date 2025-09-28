@@ -6,6 +6,10 @@ on:
   issue_comment:
     types: [created]
 
+permissions:
+  contents: write
+  issues: write
+
 jobs:
   create-event-pr:
     runs-on: ubuntu-latest
@@ -111,6 +115,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
+            :warning: Event validation
+
             Validation failed for the event in this issue. Please update the issue to correct the following errors and the workflow will run again.
 
             ${{ steps.read-errors.outputs.errors }}
@@ -118,7 +124,6 @@ jobs:
             After fixing the issue, either edit the issue body (the workflow runs on edits) or comment `/recheck` to re-run validation.
           issue-number: ${{ github.event.issue.number || github.event.comment.issue_id }}
           edit-mode: replace
-          header: ':warning: Event validation'
 
       - name: Commit changes
         if: steps.check-trigger.outputs.proceed == 'true' && steps.run-event.outcome == 'success'
@@ -148,7 +153,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: |
-            :white_check_mark: Validation passed and a PR has been created for this event.
+            :white_check_mark: Event validated — PR created
+
+            Validation passed and a PR has been created for this event.
 
             PR: #${{ steps.create-pr.outputs['pull-request-number'] }}
 
@@ -157,4 +164,3 @@ jobs:
             Please review the PR and merge when ready.
           issue-number: ${{ github.event.issue.number || github.event.comment.issue_id }}
           edit-mode: replace
-          header: ':white_check_mark: Event validated — PR created'
