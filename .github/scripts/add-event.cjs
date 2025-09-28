@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 const workspace = process.env.GITHUB_WORKSPACE || process.cwd();
-const eventsPath = path.join(workspace, 'public', 'events.json');
+const eventsPath = path.join(workspace, "public", "events.json");
 
-const issueBody = process.env.ISSUE_BODY || '';
-const issueTitle = process.env.ISSUE_TITLE || '';
-const issueNumber = process.env.ISSUE_NUMBER || '';
+const issueBody = process.env.ISSUE_BODY || "";
+const issueTitle = process.env.ISSUE_TITLE || "";
+const issueNumber = process.env.ISSUE_NUMBER || "";
 
 function extractCodeBlock(body) {
   // match ```json ... ``` or ```yaml ... ``` or ```...
@@ -20,15 +20,17 @@ function parseKeyValue(body) {
   const lines = body.split(/\r?\n/);
   const obj = {};
   for (const line of lines) {
-    const idx = line.indexOf(':');
+    const idx = line.indexOf(":");
     if (idx === -1) continue;
     const key = line.slice(0, idx).trim();
     let val = line.slice(idx + 1).trim();
     // strip surrounding quotes
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    if (
+      (val.startsWith('"') && val.endsWith('"')) ||
+      (val.startsWith("'") && val.endsWith("'"))
+    ) {
       val = val.slice(1, -1);
     }
-    console.log('key='+key + 'val=' + val);
     // try to coerce numbers
     if (/^\d+$/.test(val)) val = parseInt(val, 10);
     obj[key] = val;
@@ -57,20 +59,20 @@ function parseEventFromBody(body) {
 
 function readEvents() {
   if (!fs.existsSync(eventsPath)) {
-    console.log('events.json not found, creating new array');
+    console.log("events.json not found, creating new array");
     return [];
   }
-  const content = fs.readFileSync(eventsPath, 'utf8');
+  const content = fs.readFileSync(eventsPath, "utf8");
   try {
     return JSON.parse(content);
   } catch (e) {
-    console.error('Failed to parse existing events.json:', e.message);
+    console.error("Failed to parse existing events.json:", e.message);
     process.exit(1);
   }
 }
 
 function writeEvents(events) {
-  fs.writeFileSync(eventsPath, JSON.stringify(events, null, 2) + '\n', 'utf8');
+  fs.writeFileSync(eventsPath, JSON.stringify(events, null, 2) + "\n", "utf8");
 }
 
 function makeId(events) {
@@ -82,71 +84,94 @@ function makeId(events) {
 }
 
 function sanitizeBranchName(s) {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 50);
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 50);
 }
 
 async function main() {
-  console.log('Parsing issue #' + issueNumber);
+  console.log("Parsing issue #" + issueNumber);
   const parsed = parseEventFromBody(issueBody);
   if (!parsed) {
-    console.error('Could not parse an event from the issue body. Expect a JSON code block or key: value lines.');
+    console.error(
+      "Could not parse an event from the issue body. Expect a JSON code block or key: value lines."
+    );
     process.exit(1);
   }
 
   const events = readEvents();
 
   const newEvent = Object.assign({}, parsed);
-  if (!newEvent.title || newEvent.title === '') {
+  if (!newEvent.title || newEvent.title === "") {
     if (issueTitle) newEvent.title = issueTitle;
   }
 
   // Validation: required fields
   const errors = [];
-  if (!newEvent.title || String(newEvent.title).trim() === '') {
-    errors.push('title is required');
+  if (!newEvent.title || String(newEvent.title).trim() === "") {
+    errors.push("title is required");
   }
-  if (newEvent.teamNumber === undefined || newEvent.teamNumber === null || newEvent.teamNumber === '') {
-    errors.push('teamNumber is required');
-  }
-  else {
+  if (
+    newEvent.teamNumber === undefined ||
+    newEvent.teamNumber === null ||
+    newEvent.teamNumber === ""
+  ) {
+    errors.push("teamNumber is required");
+  } else {
     // enforce numeric-only teamNumber
     const tn = String(newEvent.teamNumber).trim();
     if (!/^\d+$/.test(tn)) {
-      errors.push('teamNumber must be numeric only');
+      errors.push("teamNumber must be numeric only");
     } else {
       // coerce to number for storage
       newEvent.teamNumber = parseInt(tn, 10);
     }
   }
-  if (!newEvent.contact || String(newEvent.contact).trim() === '') {
-    errors.push('contact (email) is required');
+  if (!newEvent.contact || String(newEvent.contact).trim() === "") {
+    errors.push("contact (email) is required");
   } else {
     // basic email validation
     const email = String(newEvent.contact).trim();
     const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-    if (!emailRe.test(email)) errors.push('contact must be a valid email address');
+    if (!emailRe.test(email))
+      errors.push("contact must be a valid email address");
   }
 
   // If both start and end provided, validate ordering
   if (newEvent.start && newEvent.end) {
     const s = new Date(newEvent.start);
     const e = new Date(newEvent.end);
-    if (isNaN(s.getTime())) errors.push('start must be a valid date/time (ISO 8601 recommended)');
-    if (isNaN(e.getTime())) errors.push('end must be a valid date/time (ISO 8601 recommended)');
-    if (!isNaN(s.getTime()) && !isNaN(e.getTime()) && s.getTime() >= e.getTime()) {
-      errors.push('start must be before end');
+    if (isNaN(s.getTime()))
+      errors.push("start must be a valid date/time (ISO 8601 recommended)");
+    if (isNaN(e.getTime()))
+      errors.push("end must be a valid date/time (ISO 8601 recommended)");
+    if (
+      !isNaN(s.getTime()) &&
+      !isNaN(e.getTime()) &&
+      s.getTime() >= e.getTime()
+    ) {
+      errors.push("start must be before end");
     }
   }
 
   if (errors.length) {
-    console.error('Validation failed:');
-    for (const err of errors) console.error('- ' + err);
+    console.error("Validation failed:");
+    for (const err of errors) console.error("- " + err);
     try {
-      const errFile = path.join(workspace, 'validation-errors.txt');
-      fs.writeFileSync(errFile, errors.map(e => '- ' + e).join('\n') + '\n', 'utf8');
-      console.log('Wrote validation errors to', errFile);
+      const errFile = path.join(workspace, "validation-errors.txt");
+      fs.writeFileSync(
+        errFile,
+        errors.map((e) => "- " + e).join("\n") + "\n",
+        "utf8"
+      );
+      console.log("Wrote validation errors to", errFile);
     } catch (writeErr) {
-      console.error('Failed to write validation errors file:', writeErr.message);
+      console.error(
+        "Failed to write validation errors file:",
+        writeErr.message
+      );
     }
     process.exit(1);
   }
@@ -158,15 +183,35 @@ async function main() {
 
   writeEvents(events);
 
-  console.log('Appended new event with id', newEvent.id);
-  console.log('Wrote', eventsPath);
+  console.log("Appended new event with id", newEvent.id);
+  console.log("Wrote", eventsPath);
 
   // print branch name suggestion for the workflow (optional)
-  const branch = 'add-event-' + newEvent.id + '-' + sanitizeBranchName(newEvent.title || String(Date.now()));
-  console.log('Suggested branch name:', branch);
+  const branch =
+    "add-event-" +
+    newEvent.id +
+    "-" +
+    sanitizeBranchName(newEvent.title || String(Date.now()));
+  console.log("Suggested branch name:", branch);
 }
 
-main().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+if (require.main !== module) {
+  module.exports = {
+    extractCodeBlock,
+    parseKeyValue,
+    parseEventFromBody,
+    readEvents,
+    writeEvents,
+    makeId,
+    sanitizeBranchName,
+    // main is optional if you want integration tests
+    main,
+  };
+}
