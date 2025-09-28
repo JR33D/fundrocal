@@ -28,6 +28,7 @@ function parseKeyValue(body) {
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
+    console.log('key='+key + 'val=' + val);
     // try to coerce numbers
     if (/^\d+$/.test(val)) val = parseInt(val, 10);
     obj[key] = val;
