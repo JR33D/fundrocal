@@ -1,11 +1,1 @@
-[
-  {
-    "id": 1,
-    "title": "Cash Bingo",
-    "start": "2025-10-26T12:00:00",
-    "end": "2025-10-26T17:00:00",
-    "location": "Palisades High School",
-    "description": "Cash bingo event to raise funds for team activities.",
-    "teamNumber": 103
-  }
-]
+{"title":"Cash Bingo","teamNumber":103,"description":"20 rounds of bingo with cash prizes, door prizes, snacks, and drinks in support of Cybersonics team 103.","location":"Palisades High School\r\n35 Church Hill Road\r\nKitnersville, PA 18943","start":"2025-10-26","end":"2025-10-26","contact":"jreed129@gmail.com","id":2}
